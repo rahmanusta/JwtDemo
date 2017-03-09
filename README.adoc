@@ -1,0 +1,82 @@
+== JWT Demo App
+
+Bu Java uygulaması içinde JWT oluşturma ve doğrulama adımlarını bulabilirsiniz.
+
+.SHA-256 üretme adımı
+[source,java]
+----
+public String doHMACSHA256(String part1AndPart2, String secretKey){
+    Mac mac = Mac.getInstance("HmacSHA256");
+    mac.init(new SecretKeySpec(secretKey.getBytes(), "HmacSHA256"));
+
+    byte[] hashBytes = mac.doFinal(part1AndPart2.getBytes());
+    String hash = doBASE64(hashBytes);
+    return hash;
+}
+----
+
+.Base64 üretme adımı
+[source,java]
+----
+public String doBASE64(byte[] bytes) {
+    Base64.Encoder encoder = Base64.getEncoder();
+    String base64 = encoder.encodeToString(bytes);
+    return base64;
+}
+
+public String doBASE64(String input) {
+    byte[] bytes = input.getBytes(Charset.forName("UTF-8"));
+    String base64 = doBASE64(bytes);
+    return base64;
+}
+----
+
+.JWT üretme adımı
+[source,java]
+----
+public String generateJWT(){
+
+    String HEADER = String.join("\n", Files.readAllLines(Paths.get("./header.json")));
+    String PAYLOAD = String.join("\n", Files.readAllLines(Paths.get("./payload.json")));
+
+    String PART1 = doBASE64(HEADER);
+    String PART2 = doBASE64(PAYLOAD);
+
+    String PART1_PART2 = PART1 + "." + PART2;
+
+    String PART3 = doBASE64(doHMACSHA256(PART1_PART2, SECRET_KEY));
+
+    String JWT_TOKEN = PART1_PART2 + "." + PART3;
+
+    return JWT_TOKEN;
+}
+----
+
+.JWT doğrulama adımı
+[source,java]
+----
+public boolean validateJWT(String jwt) {
+
+    String[] parts = jwt.split("\\.");
+    String PART1 = parts[0];
+    String PART2 = parts[1];
+    String PART3 = parts[2];
+
+    String PART1_PART2 = PART1 + "." + PART2;
+
+    String jwtSignature = doBASE64(doHMACSHA256(PART1_PART2, SECRET_KEY));
+
+    return jwtSignature.equals(PART3);
+
+}
+----
+
+.Çalıştırma adımı
+[source,java]
+----
+String JWT_TOKEN = generateJWT();
+
+boolean isValid = validateJWT(JWT_TOKEN);
+
+System.out.println("Is valid ? " + isValid);
+----
